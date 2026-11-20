@@ -1,0 +1,8 @@
+"endpoint","reason","Freq"
+"OS","agrees",579
+"OS","event differs: dead with no death day (expected difference 2)",1
+"OS","missing in the CDR",2
+"OS","time differs by over 30 days: other",3
+"OS","time missing in one source",2
+"PFI","agrees",586
+"PFI","event differs: other",1

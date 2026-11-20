@@ -1,0 +1,13 @@
+"ours","cbioportal","Freq"
+"no end date","resistant",1
+"resistant","resistant",85
+"sensitive","resistant",0
+"too early","resistant",0
+"no end date","sensitive",0
+"resistant","sensitive",4
+"sensitive","sensitive",188
+"too early","sensitive",0
+"no end date","tooearly",0
+"resistant","tooearly",3
+"sensitive","tooearly",20
+"too early","tooearly",34

@@ -1,0 +1,676 @@
+/* ==========================================================================
+   HDS report theme
+   Layout from rmdformats::readthedown (fixed sidebar table of contents),
+   look and feel from docute (light, clean documentation style, dark mode),
+   colours from the University of Cambridge crest, softened to pastels.
+   ========================================================================== */
+
+/* ---- Palette ------------------------------------------------------------- */
+:root {
+  --blue:  #247BA0;
+  --sky:   #73BFE2;
+  --coral: #F07855;
+  --sand:  #D9A86C;
+  --navy:  #263746;
+  --grey:  #73858C;
+  --bg:    #F5F4F0;
+  --rose:  #D6536D;
+  --lgrey: #E2E6E5;
+
+  /* Colours of the University of Cambridge crest (red field, gold lions and
+     book, ermine cross), sampled from the crest and softened to pastels */
+  --crest-red: #A83A36;       /* links and highlights */
+  --crest-red-dark: #8A2C29;  /* hover */
+  --crest-wine: #7A3532;      /* title and footer panels */
+  --crest-gold: #D9A92E;      /* rules, progress and markers */
+  --crest-gold-pale: #F6E7B8; /* table headings */
+  --ermine: #FFFBF5;          /* reading area */
+  --crest-rose: #F4DAD7;      /* pastel red: page and sidebar */
+  --crest-line: #EBD3CF;      /* rules and borders */
+  --ink: #2E2929;             /* text */
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --code-font: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* ---- Light mode (default): Cambridge crest colours, as pastels ---------- */
+:root {
+  --page-bg: var(--crest-rose);
+  --content-bg: var(--ermine);
+  --sidebar-bg: var(--crest-rose);
+  --text: var(--ink);
+  --heading: var(--ink);
+  --muted: #665756;
+  --accent: var(--crest-red);
+  --accent-hover: var(--crest-red-dark);
+  --rule: var(--crest-gold);
+  --border: var(--crest-line);
+  --table-head-bg: var(--crest-gold-pale);
+  --title-bg: var(--crest-wine);
+  --title-text: #FFFFFF;
+  --code-bg: var(--ink);
+  --code-text: #F5F4F0;
+  --output-bg: #FBF1EC;
+  --inline-code-bg: rgba(217, 169, 46, .18);
+  --inline-code-text: var(--ink);
+  --hover-bg: #FFFFFF;
+  --tip-bg: var(--crest-wine);
+}
+
+/* ---- Dark mode: set by the switch (data-theme="dark" on <html>) ----------- */
+:root[data-theme="dark"] {
+  /* Dark mode: the original deep navy, easy on the eyes */
+  --page-bg: #17212A;
+  --content-bg: #1E2B36;
+  --sidebar-bg: #17212A;
+  --text: #E2E6E5;
+  --heading: #F5F4F0;
+  --muted: #9FB0B6;
+  --accent: var(--sky);
+  --accent-hover: #A9DAF0;
+  --rule: var(--sky);
+  --border: #33475A;
+  --table-head-bg: #2A3B4A;
+  --title-bg: #101820;
+  --title-text: #F5F4F0;
+  --code-bg: #101820;
+  --code-text: #F5F4F0;
+  --output-bg: #17212A;
+  --inline-code-bg: rgba(115, 191, 226, .16);
+  --inline-code-text: #CDE9F6;
+  --hover-bg: #243442;
+  --tip-bg: #2A3B4A;
+  color-scheme: dark;
+}
+
+/* ---- Page ---------------------------------------------------------------- */
+body {
+  background: var(--page-bg);
+  color: var(--text);
+  font: 16px/1.7 var(--font);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color .25s, color .25s;
+}
+
+#content {
+  background: var(--content-bg);
+  max-width: 920px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+p, #content ul, #content ol { font-size: 16px; line-height: 1.7; color: var(--text); }
+strong, b { color: var(--heading); }
+
+a, #main :not(.leaflet-control) > a {
+  color: var(--accent);
+  background-image: none;          /* remove readthedown underline animation */
+  text-decoration: none;
+  transition: color .15s;
+}
+a:hover, #main :not(.leaflet-control) > a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+  background: none;
+}
+
+/* ---- Headings (docute: light weight, h2 rule) ----------------------------- */
+h1, h2, h3, h4, h5, h6, legend {
+  font-family: var(--font);
+  color: var(--heading);
+  font-weight: 300;
+  line-height: 1.2;
+}
+h1 { font-size: 2.4rem; margin: 3rem 0 1.2rem; }
+h2 { font-size: 1.8rem; margin-top: 3rem; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 1.35rem; font-weight: 400; margin: 2rem 0 1rem; }
+h4, h5 { font-size: 1.1rem; font-weight: 600; color: var(--muted); }
+
+h1.title { font-weight: 300; font-size: 2.6rem; color: var(--heading); margin-top: 1rem; }
+h1.subtitle { font-weight: 300; font-size: 1.3rem; color: var(--muted); }
+.author, .date { color: var(--muted); font-size: .95rem; margin: 0; }
+
+.header-section-number { color: var(--accent); margin-right: .35em; }
+
+/* ---- Sidebar (readthedown layout, docute style) --------------------------- */
+#sidebar {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  font-size: 15px;
+}
+
+#sidebar h2 {
+  background-color: var(--title-bg);
+  color: var(--title-text);
+  font-weight: 400;
+  text-align: left;
+  padding: 18px 22px;
+  border-bottom: 4px solid var(--rule);
+  margin-bottom: 1rem;
+}
+#sidebar h2 a { color: var(--title-text); }
+
+#sidebar a {
+  color: var(--text);
+  padding: 6px 22px;
+  border-left: 3px solid transparent;
+}
+#sidebar a:hover { background-color: var(--hover-bg); color: var(--accent); text-decoration: none; }
+
+#toc ul.nav > li > a:before {      /* docute-style dot */
+  content: "";
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--muted);
+  margin-right: 9px;
+  vertical-align: middle;
+}
+
+#toc ul.nav li.active > a {
+  color: var(--accent) !important;
+  font-weight: 600;
+}
+#toc ul.nav li.active > a:before { background: var(--accent); }
+
+#toc ul.nav li.active ul li a {
+  background-color: transparent !important;
+  color: var(--muted) !important;
+  border-right: none !important;
+  font-size: 14px;
+  padding-left: 40px;
+}
+#toc ul.nav li.active ul li.active a {
+  background-color: transparent !important;
+  color: var(--heading) !important;
+  font-weight: 600 !important;
+}
+
+/* No rules between contents items */
+#toc li.current, #toc li.current a, #toc li.divide-top, #toc li.divide-bottom {
+  background: transparent; border-top: none; border-bottom: none; border-right: none !important;
+}
+#toc ul li, #toc ul li a, #toc ul.nav li.active ul li a { border-top: none !important; border-bottom: none !important; }
+#toc ul.nav li.active ul li.active a { border-left-color: transparent !important; }
+
+#postamble, #sidebar #postamble {
+  background: var(--title-bg) !important;
+  color: var(--lgrey);
+  border-top: 4px solid var(--rule);
+}
+
+
+#nav-top { background: var(--title-bg); }
+#nav-top span.glyphicon { color: var(--title-text); }
+
+/* ---- Code (docute: dark blocks, tinted inline code) ----------------------- */
+/* The wrapper stays visible when code is folded, so only the <pre> is dark */
+#content div.sourceCode { background: transparent !important; border: none; margin: 1rem 0; }
+#content pre, #content pre.sourceCode {
+  background: var(--code-bg) !important;
+  border: none;
+  border-radius: 6px;
+}
+#content pre code, #content pre.sourceCode code {
+  font-family: var(--code-font);
+  font-size: 13.5px;
+  color: var(--code-text);
+  background: none;
+}
+#content pre { padding: 16px 20px; margin: 1.5rem 0; }
+
+#content pre:not(.sourceCode) {      /* R output */
+  background: var(--output-bg) !important;
+  border: 1px solid var(--border);
+}
+#content pre:not(.sourceCode) code { color: var(--text); }
+
+#content code {
+  font-family: var(--code-font);
+  font-size: 88%;
+  background: var(--inline-code-bg);
+  color: var(--inline-code-text);
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+
+.code-folding-btn, .btn-default.btn-xs, .btn-default {
+  background: var(--content-bg); color: var(--accent); border: 1px solid var(--border);
+  border-radius: 4px; font-size: 12px;
+}
+.dropdown-menu { background: var(--content-bg); border-color: var(--border); }
+.dropdown-menu > li > a { color: var(--text); }
+
+/* ---- Tables (docute: rounded header, light rules) ------------------------- */
+#main table:not(.dataTable) {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  margin: 1.5rem 0;
+  font-size: 14.5px;
+  border: none;
+}
+#main table:not(.dataTable) thead th {
+  background: var(--table-head-bg);
+  color: var(--heading);
+  font-weight: 600;
+  font-size: 13px;
+  border: none;
+  padding: 10px 12px;
+}
+#main table:not(.dataTable) thead th:first-child { border-radius: 6px 0 0 6px; }
+#main table:not(.dataTable) thead th:last-child  { border-radius: 0 6px 6px 0; }
+#main table:not(.dataTable) td {
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  color: var(--text);
+  background: var(--content-bg) !important;
+}
+
+caption, .table caption, p.caption, .figure p.caption, #main table caption {
+  font-family: var(--font);
+  color: var(--muted);
+  font-size: 14px;
+  font-style: normal;
+  text-align: left;
+  caption-side: top;
+  padding-bottom: 8px;
+}
+
+/* ---- Callouts: ::: {.tip}, ::: {.note}, ::: {.warning}, ::: {.danger} ----- */
+#content .tip, #content .note, #content .warning, #content .danger {
+  background: var(--content-bg);
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--accent);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin: 1.5rem 0;
+}
+#content .note    { border-left-color: var(--rule); }
+#content .warning { border-left-color: var(--sand); }
+#content .danger  { border-left-color: var(--rose); }
+#content .tip > :last-child, #content .note > :last-child,
+#content .warning > :last-child, #content .danger > :last-child { margin-bottom: 0; }
+
+blockquote {
+  background: var(--output-bg);
+  border-left: 5px solid var(--border);
+  color: var(--muted);
+  font-style: normal;
+}
+
+/* ---- Figures ------------------------------------------------------------- */
+.figure { margin: 1.5rem 0; }
+.figure img { border-radius: 6px; }
+:root[data-theme="dark"] .figure img { background: #E2E6E5; padding: 8px; filter: brightness(.94); }
+:root[data-theme="dark"] #postamble .report-footer img { filter: brightness(.9); }
+
+/* ---- Logo: under the author and date in the sidebar footer --------------- */
+.report-footer { margin: 3rem 0 1rem; text-align: center; }      /* fallback position */
+.report-footer img { max-width: 260px; width: 60%; height: auto; }
+#postamble .report-footer { margin: 12px 0 4px; text-align: left; }
+#postamble .report-footer img {
+  width: 100%;
+  max-width: 240px;
+  background: var(--bg);            /* light card: the lettering is black */
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+
+/* ---- Dark mode switch, next to the report title in the sidebar ----------- */
+#sidebar h2 { display: flex; align-items: flex-start; gap: 12px; }
+#sidebar h2 > a { flex: 1 1 auto; padding: 0 !important; border: none !important; }
+#sidebar h2 > a:hover { background: none; color: var(--title-text); }
+
+.theme-switch {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  line-height: 1;
+}
+/* Says which mode is on: "Light" or "Dark" */
+.theme-switch .mode-label {
+  font: 600 10px/1 var(--font);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--lgrey);
+  opacity: .85;
+}
+.theme-switch:focus-visible { outline: 2px solid var(--crest-gold); outline-offset: 3px; border-radius: 999px; }
+.theme-switch .track {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 20px;
+  border-radius: 999px;
+  background: #3A4D5E;
+  transition: background-color .25s;
+}
+.theme-switch .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+  transition: transform .25s;
+}
+.theme-switch[aria-checked="true"] .track { background: var(--rule); }
+.theme-switch[aria-checked="true"] .knob { transform: translateX(18px); }
+
+
+
+/* ---- Author and email in the sidebar footer -------------------------------- */
+#postamble .glyphicon { display: none; }             /* no icons */
+#postamble .author { color: #FFFFFF; font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+#postamble .report-email { font-weight: 400; font-size: 13px; white-space: nowrap; }
+#postamble .report-email a { padding: 0 !important; margin: 0 !important; border-left: none !important; display: inline; color: #FFFFFF; text-decoration: none; border-bottom: 1px solid rgba(255, 255, 255, .45); }
+#postamble .report-email a:hover { color: #FFFFFF; border-bottom-color: #FFFFFF; }
+#postamble .date { color: var(--lgrey); font-size: 13px; }
+
+/* ---- Reading progress ---------------------------------------------------- */
+html { scroll-behavior: smooth; }
+#read-progress {
+  position: fixed; top: 0; left: 0; z-index: 2000;
+  height: 3px; width: 0;
+  background: var(--rule);
+  transition: width .1s linear;
+}
+.toc-progress { padding: 0 22px 14px; }
+.toc-progress-text { font-size: 12px; font-weight: 600; letter-spacing: .03em; color: var(--muted); }
+.toc-progress .bar { height: 4px; border-radius: 999px; background: var(--border); overflow: hidden; margin-top: 5px; }
+.toc-progress .fill { height: 100%; width: 0; background: var(--rule); border-radius: 999px; transition: width .2s ease-out; }
+
+/* ---- Contents: movement on hover, sections read get a filled dot ----------- */
+#sidebar #toc a { transition: transform .15s ease, color .15s ease, background-color .15s ease; }
+#sidebar #toc a:hover { transform: translateX(4px); }
+#toc ul.nav > li > a:before { transition: background-color .25s, transform .25s; }
+#toc ul.nav > li.toc-done > a:before { background: var(--rule); }
+#toc ul.nav > li.active > a:before { transform: scale(1.6); }
+
+/* ---- Back to top --------------------------------------------------------- */
+#back-to-top {
+  position: fixed; right: 26px; bottom: 26px; z-index: 1500;
+  width: 42px; height: 42px; border-radius: 50%;
+  border: none; cursor: pointer;
+  background: var(--title-bg); color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .2);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transform: translateY(8px);
+  transition: opacity .2s, transform .2s, background-color .2s;
+}
+#back-to-top.show { opacity: 1; pointer-events: auto; transform: none; }
+#back-to-top:hover { background: var(--accent); }
+:root[data-theme="dark"] #back-to-top { background: #2A3B4A; }
+:root[data-theme="dark"] #back-to-top:hover { background: var(--sky); color: #101820; }
+#back-to-top svg { width: 18px; height: 18px; }
+
+/* ---- Abbreviations: hover or tap to see the meaning ------------------------ */
+abbr.abbr-tip {
+  position: relative;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+  cursor: help;
+}
+abbr.abbr-tip::after {
+  content: attr(data-tip);
+  position: absolute; left: 50%; bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  width: max-content; max-width: 280px;
+  padding: 6px 10px; border-radius: 6px;
+  background: var(--tip-bg); color: #FFFFFF;
+  font-size: 13px; line-height: 1.4; font-weight: 400; white-space: normal; text-align: left;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .2);
+  opacity: 0; pointer-events: none; z-index: 1000;
+  transition: opacity .15s, transform .15s;
+}
+abbr.abbr-tip:hover::after, abbr.abbr-tip:focus::after { opacity: 1; transform: translateX(-50%); }
+
+/* ---- Embedded documents: coversheet and training certificate ------------- */
+.doc-image img {
+  display: block; max-width: 560px; width: 100%; height: auto;
+  margin: 1rem 0; border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .08); background: #FFFFFF;
+}
+
+/* ---- Contents grows and shrinks: only the current section opens --------- */
+#toc ul.nav > li > ul {
+  display: block !important;
+  max-height: 0; opacity: 0; overflow: hidden;
+  transition: max-height .45s ease, opacity .3s ease;
+}
+#toc ul.nav > li.active > ul { max-height: 900px; opacity: 1; }
+
+/* ---- Contents: marker that slides to the current section --------------- */
+#toc { position: relative; scroll-behavior: smooth; }
+.toc-marker {
+  position: absolute; left: 0; right: 0; top: 0; height: 0;
+  background: var(--hover-bg); border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0; pointer-events: none; z-index: 0; opacity: 0;
+  transition: transform .35s cubic-bezier(.3, .7, .3, 1), height .35s ease, opacity .2s;
+}
+#toc ul { position: relative; z-index: 1; }
+
+/* ---- Supporting material: a tab that opens a menu over the contents ------ */
+.doc-menu { position: relative; flex: 0 0 auto; border-top: 1px solid var(--border); }
+.doc-menu-tab {
+  width: 100%; display: flex; align-items: center; gap: 8px;
+  padding: 11px 22px; border: none; background: transparent; cursor: pointer;
+  font: 600 12px/1.2 var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+}
+.doc-menu-tab:hover, .doc-menu.open .doc-menu-tab { color: var(--accent); }
+.doc-menu-count {
+  font: 600 11px/1 var(--font); letter-spacing: 0; padding: 3px 7px; border-radius: 999px;
+  background: var(--border); color: var(--text);
+}
+.doc-menu .chevron {
+  width: 7px; height: 7px; margin-left: auto;
+  border-right: 2px solid currentColor; border-top: 2px solid currentColor;
+  transform: rotate(-45deg); transition: transform .25s;
+}
+.doc-menu.open .doc-menu-tab .chevron { transform: rotate(135deg); }
+.doc-menu-panel {
+  position: absolute; left: 0; right: 0; bottom: 100%; z-index: 5;
+  overflow-y: auto; padding: 4px 0 12px;
+  background: var(--sidebar-bg); border-top: 1px solid var(--border);
+  opacity: 0; transform: translateY(14px); visibility: hidden;
+  transition: opacity .25s ease, transform .25s ease, visibility 0s linear .25s;
+}
+.doc-menu.open .doc-menu-panel {
+  opacity: 1; transform: none; visibility: visible;
+  transition: opacity .25s ease, transform .25s ease;
+}
+.doc-menu-title {
+  margin: 10px 22px 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.doc-list { list-style: none; margin: 0; padding: 0; }
+#sidebar .doc-list a { display: block; padding: 6px 22px; color: var(--text); border-left: 3px solid transparent; }
+#sidebar .doc-list a:before {          /* small square: documents, not report sections */
+  content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 1px;
+  background: var(--muted); margin-right: 10px; vertical-align: middle; transition: background-color .2s;
+}
+#sidebar .doc-list a.active { color: var(--accent); font-weight: 600; background: var(--hover-bg); border-left-color: var(--accent); }
+#sidebar .doc-list a.active:before, #sidebar .doc-list a:hover:before { background: var(--accent); }
+.doc-folder { margin-top: 4px; }
+.doc-folder-toggle {
+  width: 100%; display: flex; align-items: center; gap: 9px;
+  padding: 7px 22px; border: none; background: transparent; cursor: pointer;
+  font: 15px/1.4 var(--font); color: var(--text); text-align: left;
+}
+.doc-folder-toggle:hover { color: var(--accent); }
+.doc-folder-toggle .chevron { margin-left: 0; transform: rotate(45deg); width: 6px; height: 6px; }
+.doc-menu.folder-open .doc-folder-toggle .chevron { transform: rotate(135deg); }
+.doc-folder-shape {                      /* simple folder outline */
+  position: relative; width: 15px; height: 11px; border: 1.6px solid currentColor; border-radius: 2px;
+}
+.doc-folder-shape:before {
+  content: ""; position: absolute; left: -1.6px; top: -4.5px; width: 7px; height: 3.5px;
+  border: 1.6px solid currentColor; border-bottom: none; border-radius: 2px 2px 0 0;
+}
+.doc-folder-toggle .doc-menu-count { margin-left: auto; }
+.doc-folder-list { max-height: 0; overflow: hidden; transition: max-height .35s ease; }
+.doc-menu.folder-open .doc-folder-list { max-height: 500px; }
+#sidebar .doc-folder-list a { padding-left: 44px; }
+
+/* ---- References: the cited one is highlighted ---------------------------- */
+#refs .csl-entry { scroll-margin: 40vh; transition: background-color .4s, box-shadow .4s; border-radius: 4px; }
+#refs .csl-entry.ref-current {
+  background: rgba(217, 169, 46, .16);
+  box-shadow: inset 4px 0 0 var(--rule);
+  padding-left: 12px;
+}
+#refs .csl-entry.ref-flash { animation: ref-flash 1.6s ease-out; }
+@keyframes ref-flash {
+  0%, 30% { background: rgba(217, 169, 46, .45); }
+  100% { background: rgba(217, 169, 46, .16); }
+}
+
+#doc-store { display: none; }
+
+#doc-viewer {
+  position: fixed; top: 0; bottom: 0; right: 0; left: 300px; z-index: 1800;
+  display: flex; flex-direction: column;
+  background: var(--content-bg);
+  box-shadow: -6px 0 24px rgba(0, 0, 0, .12);
+  transform: translateX(100%); visibility: hidden;
+  transition: transform .35s ease, visibility 0s linear .35s;
+}
+#doc-viewer.open { transform: none; visibility: visible; transition: transform .35s ease; }
+@media (max-width: 767px) { #doc-viewer { left: 0; } }
+.doc-viewer-head {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 28px; background: var(--title-bg); color: var(--title-text);
+  border-bottom: 4px solid var(--rule);
+}
+.doc-viewer-title { flex: 1 1 auto; font-size: 1.15rem; font-weight: 400; }
+.doc-viewer-file { color: var(--title-text) !important; font-size: 13px; opacity: .85; }
+.doc-viewer-close {
+  flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer;
+  background: rgba(255, 255, 255, .12); color: #FFFFFF; display: flex; align-items: center; justify-content: center;
+}
+.doc-viewer-close:hover { background: var(--crest-red); }
+.doc-viewer-close svg { width: 16px; height: 16px; }
+.doc-viewer-body { flex: 1 1 auto; overflow-y: auto; padding: 10px 48px 60px; max-width: 1000px; }
+.doc-viewer-body h1 { font-size: 2rem; }
+.doc-viewer-body table { display: block; overflow-x: auto; }
+.doc-viewer-body td, .doc-viewer-body th { vertical-align: top; }
+body.doc-open { overflow: hidden; }
+
+@media print {
+  .theme-switch, #back-to-top, #read-progress, .toc-progress, .doc-menu, #doc-viewer { display: none; }
+  abbr.abbr-tip { border-bottom: none; }
+  abbr.abbr-tip::after { display: none; }
+}
+
+/* Tables inside the document panel (outside #main, so styled here) */
+.doc-viewer-body table { border-collapse: separate; border-spacing: 0; margin: 1.2rem 0; font-size: 14px; }
+.doc-viewer-body thead th {
+  background: var(--table-head-bg); color: var(--heading); font-weight: 600; font-size: 13px;
+  padding: 9px 12px; border: none; text-align: left;
+}
+.doc-viewer-body td { padding: 9px 12px; border: none; border-bottom: 1px solid var(--border); color: var(--text); }
+.doc-viewer-body .doc-image img {
+  display: block; max-width: 620px; width: 100%; height: auto; margin: 1.2rem 0;
+  border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 2px 10px rgba(0, 0, 0, .08); background: #FFFFFF;
+}
+#doc-viewer section.doc { display: block; }
+.pdf-embed iframe {
+  display: block; width: 100%; max-width: 760px; height: 78vh; margin: 1rem 0;
+  border: 1px solid var(--border); border-radius: 6px; background: #FFFFFF;
+}
+
+/* The sliding marker is the only highlight in the contents */
+#toc ul.nav li.active > a, #toc ul.nav li.active ul li.active > a {
+  background: transparent !important; border-left-color: transparent !important;
+}
+#toc ul.nav li > a:hover { background: var(--hover-bg) !important; }
+:root[data-theme="dark"] #toc ul.nav li > a:hover { background: rgba(255, 255, 255, .05) !important; }
+:root[data-theme="dark"] .toc-marker { background: rgba(255, 255, 255, .06); }
+html { background: var(--page-bg); }
+#toc li, #toc li.active, #toc ul.nav li.active > a { border-top: none !important; border-bottom: none !important; }
+
+/* ---- Shadows: soft depth, warm in light mode and deeper in dark mode ------ */
+:root { --shadow-soft: 0 2px 10px rgba(122, 53, 50, .08); --shadow-lift: 0 10px 34px rgba(122, 53, 50, .13); }
+:root[data-theme="dark"] { --shadow-soft: 0 2px 10px rgba(0, 0, 0, .28); --shadow-lift: 0 10px 34px rgba(0, 0, 0, .45); }
+
+#content { border-left: none; border-right: none; box-shadow: var(--shadow-lift); }
+#sidebar { box-shadow: 4px 0 22px rgba(122, 53, 50, .10); border-right: none; }
+:root[data-theme="dark"] #sidebar { box-shadow: 4px 0 22px rgba(0, 0, 0, .35); }
+#sidebar h2 { box-shadow: 0 3px 10px rgba(0, 0, 0, .14); position: relative; z-index: 2; }
+#postamble { box-shadow: 0 -3px 12px rgba(0, 0, 0, .12); position: relative; z-index: 6; }
+#postamble .report-footer img { box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
+.toc-marker { box-shadow: var(--shadow-soft); }
+.doc-menu-panel { box-shadow: 0 -10px 24px rgba(122, 53, 50, .12); }
+:root[data-theme="dark"] .doc-menu-panel { box-shadow: 0 -10px 24px rgba(0, 0, 0, .4); }
+
+#main table:not(.dataTable) { border-radius: 8px; box-shadow: var(--shadow-soft); overflow: hidden; }
+.figure img { box-shadow: var(--shadow-soft); }
+.infobox { box-shadow: var(--shadow-soft); }
+#refs .csl-entry.ref-current { box-shadow: inset 4px 0 0 var(--rule), var(--shadow-soft); }
+.doc-viewer-body table, .pdf-embed iframe { box-shadow: var(--shadow-soft); }
+#back-to-top { box-shadow: var(--shadow-lift); }
+#back-to-top:hover { transform: translateY(-2px); }
+
+/* ---- Light and dark switch: a smoother slider with a drawn sun and moon --- */
+.theme-switch { gap: 6px; }
+.theme-switch .track {
+  width: 46px; height: 24px;
+  background: linear-gradient(135deg, #F6E7B8, #D9A92E);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .28), 0 1px 0 rgba(255, 255, 255, .12);
+  transition: background .4s ease, box-shadow .3s ease;
+}
+.theme-switch .knob {
+  top: 3px; left: 3px; width: 18px; height: 18px;
+  background: #FFFDF7;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+  transition: transform .45s cubic-bezier(.68, -.35, .27, 1.35), background-color .4s ease;
+}
+.theme-switch .knob::after {              /* sun: a small gold disc with a glow */
+  content: ""; width: 8px; height: 8px; border-radius: 50%;
+  background: #E0A92A; box-shadow: 0 0 0 3px rgba(224, 169, 42, .22);
+  transition: all .4s ease;
+}
+.theme-switch:hover .track { box-shadow: inset 0 1px 3px rgba(0, 0, 0, .28), 0 0 0 3px rgba(217, 169, 46, .25); }
+.theme-switch:hover .knob { box-shadow: 0 3px 9px rgba(0, 0, 0, .4); }
+.theme-switch[aria-checked="true"] .track { background: linear-gradient(135deg, #2F5672, #101820); }
+.theme-switch[aria-checked="true"] .knob { transform: translateX(22px); background: #E6F2F8; }
+.theme-switch[aria-checked="true"] .knob::after {   /* moon: a crescent cut from the disc */
+  width: 10px; height: 10px; background: transparent;
+  box-shadow: inset -3px -2px 0 0 #247BA0;
+  transform: rotate(-20deg);
+}
+.theme-switch .mode-label { font-size: 9.5px; letter-spacing: .12em; opacity: .75; transition: opacity .2s; }
+.theme-switch:hover .mode-label { opacity: 1; }
+
+/* The certificate entry in the contents, when its panel is open */
+#toc a[data-doc].active { color: var(--accent) !important; font-weight: 600; }
+.doc-note {
+  font-size: 14px; color: var(--muted); padding: 10px 14px; margin: 1rem 0;
+  border-left: 3px solid var(--rule); background: var(--output-bg); border-radius: 0 6px 6px 0;
+}
+
+/* The certificate entry: set apart below the report sections, with a square */
+#toc ul.nav > li.toc-doc {
+  margin-top: 16px !important; padding-top: 12px !important;
+  border-top: 1px solid var(--border) !important;
+}
+#toc ul.nav > li.toc-doc > a:before {
+  width: 7px; height: 7px; border-radius: 1px; background: var(--muted);
+}
+#toc ul.nav > li.toc-doc > a:hover:before, #toc ul.nav > li.toc-doc > a.active:before { background: var(--accent); }

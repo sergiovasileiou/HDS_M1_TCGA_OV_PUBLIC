@@ -1,0 +1,3 @@
+"in_model","patients","mean_age","percent_stage_iv","percent_no_residual","percent_white","percent_died","median_os_days","mean_diagnosis_year"
+FALSE,125,60.1,16.9,19.5,89.9,38.4,346,2005.5
+TRUE,366,58.6,15,24.3,89.8,63.4,1212.5,2003.3

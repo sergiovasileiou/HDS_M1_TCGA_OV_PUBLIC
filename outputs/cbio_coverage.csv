@@ -1,0 +1,3 @@
+"has_cbio_label","patients","mean_age","percent_white","race_missing","percent_stage_iv","percent_no_residual","mean_diagnosis_year"
+FALSE,242,60.4,85.4,23,15.2,23.5,2004
+TRUE,345,59.3,92.3,8,15.4,22.8,2003.6

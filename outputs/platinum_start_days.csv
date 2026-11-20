@@ -1,0 +1,9 @@
+"days_from_diagnosis","Freq"
+"day 0 or before",5
+"1 to 30",282
+"31 to 60",161
+"61 to 90",35
+"91 to 120",6
+"121 to 180",2
+"181 to 365",4
+"over 365",8

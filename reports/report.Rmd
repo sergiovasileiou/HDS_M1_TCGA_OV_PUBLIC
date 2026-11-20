@@ -1,0 +1,729 @@
+---
+title: "Are residual disease, stage and age associated with platinum resistance?"
+subtitle: "An analysis-ready dataset from The Cancer Genome Atlas ovarian cancer project"
+author: "Sergios Vasileiou"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  rmdformats::readthedown:
+    css: hds_theme.css
+    highlight: breezedark
+    embed_fonts: false
+    toc_depth: 3
+    number_sections: true
+bibliography:
+  - references.bib
+  - packages.bib
+csl: nlm-citation-sequence.csl
+link-citations: true
+---
+
+```{r setup, include = FALSE}
+# echo = FALSE hides all code in the knitted report (code chunks would count
+# towards the word limit); the code is in this file and in scripts/
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+here::i_am("reports/report.Rmd")
+library(dplyr)
+library(here)
+library(knitr)
+library(ggplot2)
+source(here("R", "theme_hds.R"))   # palette and theme_hds()
+
+# Package citations: write a BibTeX entry for R and each package used, so the
+# reference list always matches the versions installed. Keys are "R-" plus
+# the package name, for example [@R-dplyr]. Add any new package to this list.
+packages_used <- c("base", "TCGAbiolinks", "dplyr", "here", "readxl", "jsonlite",
+                   "broom", "ggplot2", "knitr", "rmarkdown", "rmdformats", "renv")
+write_bib(packages_used, file = here("reports", "packages.bib"))
+
+# Outputs saved by the scripts (run run_all.R first)
+table_sizes         <- read.csv(here("outputs", "table_sizes.csv"))
+missing_patient     <- read.csv(here("outputs", "missing_patient.csv"))
+placeholders        <- read.csv(here("outputs", "placeholders.csv"))
+cohort_flow         <- read.csv(here("outputs", "cohort_flow.csv"))
+validation_cdr      <- read.csv(here("outputs", "validation_cdr.csv"))
+validation_platinum <- read.csv(here("outputs", "validation_platinum.csv"))
+validation_reasons  <- read.csv(here("outputs", "validation_cdr_reasons.csv"))
+platinum_crosstab   <- read.csv(here("outputs", "platinum_crosstab.csv"))
+cbio_coverage       <- read.csv(here("outputs", "cbio_coverage.csv"))
+platinum_start      <- read.csv(here("outputs", "platinum_start_days.csv"))
+model_main          <- read.csv(here("outputs", "model_main.csv"))
+model_s1            <- read.csv(here("outputs", "model_s1_12m.csv"))
+model_no_redacted   <- read.csv(here("outputs", "model_no_redacted.csv"))
+model_180           <- read.csv(here("outputs", "model_180.csv"))
+model_summary       <- read.csv(here("outputs", "model_summary.csv"))
+in_vs_out           <- read.csv(here("outputs", "in_vs_out.csv"))
+ard                 <- read.csv(here("outputs", "ard_tcga_ov.csv"))
+
+# Writes one odds ratio and its 95% CI as text, for use in sentences,
+# for example or_text(model_main, "age_10") gives "1.29 (1.05 to 1.61)"
+or_text <- function(results, term_name) {
+  row <- results[results$term == term_name, ]
+  sprintf("%.2f (%.2f to %.2f)", row$estimate, row$conf.low, row$conf.high)
+}
+```
+
+```{css, echo = FALSE}
+.infobox {
+  border-left: 4px solid var(--crest-gold);
+  background: #FBF0D9;
+  padding: 0.8em 1em;
+  margin: 1.2em 0;
+  border-radius: 4px;
+}
+[data-theme="dark"] .infobox {
+  border-left-color: #73BFE2;
+  background: #1C2A33;
+}
+
+table caption {
+  caption-side: bottom !important;
+  text-align: left;
+  padding-top: 0.5em;
+}
+
+.refs-box > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 0.4em 0;
+}
+.refs-box[open] > summary { margin-bottom: 0.8em; }
+#refs .csl-entry {
+  margin-bottom: 0.7em;
+  padding-bottom: 0.7em;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+}
+#refs .csl-entry:last-child { border-bottom: none; }
+.refs-box .when-open { display: none; }
+.refs-box[open] .when-open { display: inline; }
+.refs-box[open] .when-closed { display: none; }
+```
+
+```{=html}
+<!-- Dark mode switch (docute style). It is moved next to the report title at
+     the top of the sidebar, so it takes no space from the report.
+     Remembers the reader's choice in this browser; otherwise opens in light
+     mode. -->
+<button class="theme-switch" id="theme-switch" type="button" role="switch"
+        aria-checked="false" aria-label="Dark mode">
+  <span class="track"><span class="knob"></span></span>
+  <span class="mode-label">Light</span>
+</button>
+<script>
+(function () {
+  var root = document.documentElement;
+  var sw = document.getElementById("theme-switch");
+  var stored = null;
+  try { stored = localStorage.getItem("hds-theme"); } catch (e) {}
+  var theme = stored || "light";   // opens in light mode unless the reader chose dark
+
+  function apply(t) {
+    var dark = t === "dark";
+    root.setAttribute("data-theme", t);
+    sw.setAttribute("aria-checked", dark ? "true" : "false");
+    sw.querySelector(".mode-label").textContent = dark ? "Dark" : "Light";
+    sw.title = dark ? "Switch to light mode" : "Switch to dark mode";
+  }
+  apply(theme);
+
+  sw.addEventListener("click", function () {
+    theme = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    apply(theme);
+    try { localStorage.setItem("hds-theme", theme); } catch (e) {}
+  });
+
+  // Once the page has loaded: switch next to the title, logo under the author
+  document.addEventListener("DOMContentLoaded", function () {
+    var title = document.querySelector("#sidebar h2");
+    if (title) title.appendChild(sw);
+    var footer = document.getElementById("postamble");
+    var logo = document.querySelector(".report-footer");
+    if (footer && logo) footer.appendChild(logo);
+  });
+})();
+</script>
+```
+
+<!--
+WORD BUDGET: 3,000 maximum, abstract included, references excluded.
+Each table or figure counts as 150 words; code is hidden (echo = FALSE).
+Abstract 200 | Introduction 600 | Methods 650 | Results 450 | Conclusion 500
+Tables: 4 x 150 = 600. Total 3,000.
+-->
+
+# Coversheet {-}
+
+<details class="refs-box">
+<summary><span class="when-closed">Show coversheet</span><span class="when-open">Hide coversheet</span></summary>
+
+```{r coversheet, results = "asis"}
+# Shows every page saved as reports/images/coversheet*.png (for example
+# coversheet_1.png, coversheet_2.png). It sits before the Abstract, so it is
+# outside the word count.
+cover <- sort(list.files(here("reports", "images"), pattern = "^coversheet.*\\.png$"))
+if (length(cover) > 0) {
+  label <- if (length(cover) == 1) "Coversheet" else paste("Coversheet, page", seq_along(cover))
+  cat(sprintf("::: {.doc-image}\n![%s](images/%s)\n:::\n\n", label, cover), sep = "")
+} else {
+  cat("*Coversheet to be added: save it as reports/images/coversheet.png.*")
+}
+```
+
+</details>
+
+# Abstract {-}
+
+**Background.** Platinum resistance guides retreatment in ovarian cancer, but TCGA-OV holds no documented resistance outcome. This report derived platinum status from dated records with a six-month rule and tested its association with residual disease, stage and age.
+
+**Methods.** TCGA-OV clinical tables (GDC release 46.0) were quality-assessed. Resistance was a new tumour event within 183 days of the last first-line platinum dose. Outcomes were validated against the TCGA Clinical Data Resource and cBioPortal, and logistic regression was fitted.
+
+**Results.** Of `r cohort_flow$patients[2]` first-line patients, `r cohort_flow$patients[5]` were modelled and `r model_summary$resistant[1]` (`r round(100 * model_summary$resistant[1] / model_summary$patients[1], 1)`%) were resistant. Validation targets were met (kappa `r validation_platinum$kappa`). Residual disease of 1 to 10 mm (odds ratio `r or_text(model_main, "residual_group1-10 mm")`) and over 10 mm (`r or_text(model_main, "residual_groupover 10 mm")`) and older age (`r sprintf("%.2f", model_main$estimate[model_main$term == "age_10"])` per 10 years) were associated with resistance.
+
+**Conclusion.** The dataset suits logistic regression, but the cohort is historical and predominantly white, so the findings are not ready for clinical use.
+
+# Introduction
+
+Ovarian cancer is the 15th most lethal cancer in the UK, causing around 3,900 deaths a year between 2022 and 2024 [@cruk_mortality]. For 2022 in England, 62.5% of cases with a known stage were advanced (stage III/IV) [@cruk_edh], while the survival rate for 5 years dropped from 95% for those with stage I to ~15% for those with stage IV [@cruk_survival]. Approximately 90% of ovarian cancers are epithelial, which is characterised by being a group of five (or more) histological subtypes differing variously from biology to treatment [@matulonis2016]. Of all epithelial ovarian cancers, high grade serous cancer (HGSC) is the most common [@matulonis2016] thought to originate in the fallopian tube [@matulonis2016; @kindelberger2007; @labidigaly2017].
+
+The standard first-line treatment involves primary cytoreductive (debulking) surgery [@matulonis2016; @lheureux2019]. The surgery is then followed by platinum-based chemotherapy, primarily with cisplatin or carboplatin, usually combined with a taxane [@matulonis2016; @lheureux2019]. A key term is the platinum-free interval, which signifies the time from the last platinum dose to a sign of tumour recurrence or progression [@matulonis2016]. When the interval is longer, a repeat course of treatment has a higher chance of success: in Markman et al.'s study, 27% of women with an interval of 5 to 12 months responded, while 59% responded after an interval of more than two years [@markman1991]. If progression occurs within six months of the last platinum dose, the disease is classified as platinum-resistant, whereas if recurrence occurs after six months, it is classified as platinum-sensitive [@matulonis2016]. Even though the Gynecologic Cancer InterGroup agreed to replace the then standard platinum-free interval with a therapy-free interval [@wilson2017], this study focuses on platinum-based treatment, so it uses the platinum-free interval as the measure of resistance. This interval is best measured as a continuous variable [@bookman2017], and any cut-off point is a convention, so this study also looks at 12 months.
+
+Du Bois et al. took 3,126 patients from three randomised trials and found that covariates such as age, performance status, grade, International Federation of Gynecology and Obstetrics (FIGO) stage and histology predicted overall survival (OS) independently of residual disease [@dubois2009]. Complete resection gave the longest progression-free survival and OS, ahead of residual disease of 1 to 10 mm and over 10 mm. However, neither endpoint shows whether the cancer went on to become platinum-resistant.
+
+The Cancer Genome Atlas (TCGA) is a publicly funded project that maps the major genetic changes causing cancer [@tomczak2015]. It has profiled and collected clinical data for over 30 cancer types from many tissue source sites [@tomczak2015], and one of its ovarian cancer studies analysed 489 HGSC tumours [@tcga2011]. The clinical tables are open access [@gdc_access] but vary in quality [@weinstein2013]. Liu et al. [@liu2018] identified short follow-up, changing recording rules, mixed staging editions and impossible codes such as grade IV ovarian disease (mostly completeness and conformance problems in Kahn's terms [@kahn2016]), and they cleaned the data into four survival outcomes, all recommended for ovarian cancer.
+
+Liu et al.'s Clinical Data Resource (CDR) holds no treatment history, and thus cannot show how patients responded to platinum-based treatment [@liu2018]. Even though cBioPortal provides a platinum status label (sensitive, resistant or too early), the rule that creates it is not recorded in the downloaded data. Nonetheless, it has been used as an outcome, for example to build a resistance predictor on 287 TCGA patients [@li2022]. The aim of this report is to build an analysis-ready dataset that derives platinum resistance from dated treatment and disease recurrence records with a stated six-month rule, and to record every patient left out.
+
+::: {.infobox}
+**Research question.** Among patients given first-line platinum, are residual disease, stage and age associated with platinum resistance, and does the association hold at a 12-month cut-off?
+:::
+
+# Methods
+
+## Research question and analytical method
+
+The cohort studied involved patients who started platinum-based treatment within 180 days of diagnosis. Residual disease, FIGO stage group and age at diagnosis were the factors that were tested against platinum resistance. A patient was classed as resistant if their platinum-free interval was shorter than 183 days (six calendar months), meaning a new tumour event occurred less than 183 days after the last first-line dose, or before it. A patient was classed as sensitive if the interval was longer, or if they had 183 days of follow-up without an event. Since the outcome is binary, I chose logistic regression as the method. The dataset fits this method, as it has one row per patient, an outcome derived from dated records, covariates that are fixed before the outcome window, and about `r model_summary$events_per_parameter[1]` events per parameter.
+
+## Data sources and provenance
+
+The TCGA-OV clinical tables (Biospecimen Core Resource (BCR) Biotab, release 46.0) were downloaded from the Genomic Data Commons (GDC) on 11 November 2026 with TCGAbiolinks [@colaprico2016], and a checksum was recorded for each file. Two published resources were used only for validation of the data. The CDR [@liu2018] provides curated OS and progression-free interval (PFI) for the same `r cohort_flow$patients[1]` patients (OS missing for 2). The cBioPortal study ov_tcga_pub [@tcga2011; @cerami2012; @gao2013] provides a platinum status label (sensitive, resistant or too early) for 345 patients. Both were linked on the patient barcode.
+
+## Governance and safety
+
+All sources are open access, and the GDC allows their use in publications when proper accreditation is given [@gdc_access]. The Five Safes [@desai2016] guided how the data were handled throughout the study. The TCGA patient barcodes are the only identifiers in the dataset and all times are recorded as days from diagnosis, so the risk of identifying anyone is low. The repository does not include raw data or the intermediate files derived from them, and the report itself contains only counts, summaries and model estimates.
+
+## Data assessment approach
+
+Each of the tables was profiled for various attributes like size, patient coverage and TCGA placeholders such as [Not Available], which were set to missing. Quality checks followed the categories of Kahn et al. [@kahn2016]. Conformance problems included label rows under each header, which meant removing the first two rows of every table, and numbers stored as text. Completeness was assessed further on key patient fields. A range of plausibility checks flagged events after death, negative days, recurrence before the last platinum dose and a few unexpected tumour grade codes (G4 or GB). The vital status conflicted for 47 patients, who were recorded as dead on a follow-up form but alive on the patient form. Finally, implausible values were flagged rather than removed.
+
+## Phenotype definitions and analysis-ready dataset design
+
+Each record (row) is attributed to one patient, with day 0 at diagnosis. Both OS and PFI were rebuilt to check the forms and joins against the CDR. Their follow-up and new tumour event days also feed into the platinum status. First-line platinum treatment was identified from `r nrow(read.csv(here("data", "lookup", "drug_lookup.csv")))` free-text drug names, classified in a lookup table ([drug_lookup.csv](../data/lookup/drug_lookup.csv)) and checked individually, row by row. Of the `r sum(platinum_start$Freq)` patients given platinum, `r sum(platinum_start$Freq[1:4])` started within 90 days, so the 180-day cut-off affects only a few patients. There are six ordered rules ([phenotypes.md](../docs/phenotypes.md)) that assign platinum status, and patients who have no end-date, too little follow-up or who died without recurrence are not classified. Residual disease was grouped as none, 1 to 10 mm or over 10 mm, and stage as I to II, III (reference, the largest group) or IV. Lastly, age was entered per 10 years. The R0 to RX residual field was not taken into consideration because it was missing for the overwhelming majority of the cohort, and the therapy-free interval [@wilson2017] was not needed, because the focus of this study is specifically treatment with platinum-based drugs, and the platinum part of that interval is the platinum-free interval itself. For all the specifications, see [docs/phenotypes.md](../docs/phenotypes.md), [docs/data_dictionary.csv](../docs/data_dictionary.csv) and [docs/dataset_metadata.md](../docs/dataset_metadata.md).
+
+## Validation and sensitivity analyses
+
+Validation was taken into consideration by setting agreement targets before any CDR outcome value was viewed, and by adding four expected differences between the CDR and this rebuild before the comparison ran. Both are located in [docs/validation_plan.md](../docs/validation_plan.md). OS and PFI were compared with the CDR on event agreement, and OS time on agreement within 30 days. Platinum status was compared with cBioPortal using Cohen's kappa, because most patients are sensitive, so the two labels would often agree by chance alone. The target of 0.61 marks substantial agreement [@landis1977]. S1 refits the model at 12 months [@dockery2019]. S2 compares first-line patients in and out of the model. Finally, the model is refitted without the `r sum(ard$flag_cdr_redacted & ard$in_model)` patients in the model whom the CDR marks as redacted, for which the CDR gives no reason.
+
+## Reproducibility
+
+Running run_all.R checks the raw files against their recorded checksums, then runs the numbered scripts in order, each in a new environment. A full rebuild from the raw data has been tested in multiple clean R sessions.
+
+# Results
+
+<!-- EDA in R, data visualisation, research questions -->
+
+## The analysis-ready dataset
+
+The dataset has one row for each of the `r cohort_flow$patients[1]` TCGA-OV patients and `r ncol(ard)` columns. Of the `r cohort_flow$patients[1]`, `r cohort_flow$patients[2]` started platinum within 180 days of diagnosis. I then excluded from the model `r cohort_flow$patients[2] - cohort_flow$patients[3]` with no recorded last dose, `r cohort_flow$patients[3] - cohort_flow$patients[4]` who had too little follow-up or died without a recurrence, and `r cohort_flow$patients[4] - cohort_flow$patients[5]` missing age, stage or residual disease. That left `r cohort_flow$patients[5]` patients in the model, `r model_summary$resistant[1]` of whom (`r round(100 * model_summary$resistant[1] / model_summary$patients[1], 1)`%) were platinum-resistant. The CDR [@liu2018] marks `r sum(ard$flag_cdr_redacted)` patients as redacted. Apart from those, very few records were flagged: `r sum(ard$flag_recur_before_last_dose, na.rm = TRUE)` patients had a recurrence before their last platinum dose and `r sum(ard$flag_grade_check, na.rm = TRUE)` had unexpected tumour grade codes (G4 or GB).
+
+## Validation
+
+All four targets were met (Table 1).
+
+**Against the CDR**
+
+- OS events agreed for `r with(validation_reasons, sum(Freq[endpoint == "OS" & reason != "missing in the CDR"]) - sum(Freq[endpoint == "OS" & grepl("^event differs", reason)]))` of the `r with(validation_reasons, sum(Freq[endpoint == "OS" & reason != "missing in the CDR"]))` patients in both sources. The exception, recorded as dead with no death day, was one of the differences predicted before the comparison ([docs/validation_plan.md](../docs/validation_plan.md)).
+- Out of the patients with matching events, `r with(validation_reasons, Freq[endpoint == "OS" & reason == "time missing in one source"])` had no survival time in one source and `r with(validation_reasons, sum(Freq[endpoint == "OS" & grepl("^time differs", reason)]))` differed by more than 30 days.
+
+**Against cBioPortal**
+
+- Platinum status agreed for `r round(validation_platinum$agreement * validation_platinum$patients)` of `r validation_platinum$patients` patients.
+- All four disagreements were resistant here and sensitive in cBioPortal: three recurred 101 to 154 days after their last recorded dose and one before it, which is resistance under the six-month rule, so the difference most likely lies in cBioPortal's unrecorded rule.
+
+```{r table-validation}
+validation <- rbind(
+  data.frame(check    = c("OS event agreement with the CDR",
+                          "OS time within 30 days (matching events)",
+                          "PFI event agreement with the CDR"),
+             target   = validation_cdr$target,
+             achieved = validation_cdr$achieved),
+  data.frame(check    = paste0("Platinum status: Cohen's kappa against cBioPortal (",
+                               validation_platinum$patients, " patients)"),
+             target   = validation_platinum$target,
+             achieved = validation_platinum$kappa))
+validation$target_met <- ifelse(validation$achieved >= validation$target, "yes", "no")
+
+kable(validation, col.names = c("Check", "Target", "Achieved", "Target met"),
+      caption = "Table 1. Validation against targets set before the comparisons were run")
+```
+
+## Model
+
+Residual disease had the strongest association with resistance (Figure 1). Compared with no macroscopic residual disease, the odds ratio was `r or_text(model_main, "residual_group1-10 mm")` for 1 to 10 mm and `r or_text(model_main, "residual_groupover 10 mm")` for over 10 mm. The intervals overlap widely, so no gradient with size is shown. Also, each 10 years of age was associated with higher odds, `r or_text(model_main, "age_10")`. Finally, stage IV did not differ significantly from stage III, `r or_text(model_main, "stage_groupIV")`. Stage I to II had lower odds, `r or_text(model_main, "stage_groupI-II")`, but only `r with(ard, sum(in_model & stage_group %in% "I-II" & platinum_status %in% "resistant"))` of its `r with(ard, sum(in_model & stage_group %in% "I-II"))` patients was resistant, hence the very wide interval.
+
+```{r figure-model, fig.height = 3.6, fig.width = 8, dev.args = list(bg = "transparent"), fig.cap = paste0("Figure 1. Odds ratios for platinum resistance at six months, with 95% confidence intervals (", model_summary$patients[1], " patients, ", model_summary$resistant[1], " resistant). Values to the right of 1 mean higher odds of resistance; the axis is on a log scale.")}
+labels <- c("residual_group1-10 mm"    = "Residual disease 1 to 10 mm (vs none)",
+            "residual_groupover 10 mm" = "Residual disease over 10 mm (vs none)",
+            "stage_groupI-II"          = "Stage I to II (vs III)",
+            "stage_groupIV"            = "Stage IV (vs III)",
+            "age_10"                   = "Age, per 10 years")
+
+model_plot <- model_main |>
+  filter(term != "(Intercept)") |>
+  mutate(factor = factor(labels[term], levels = rev(labels)),
+         label  = sprintf("%.2f (%.2f to %.2f)", estimate, conf.low, conf.high))
+
+ggplot(model_plot, aes(x = estimate, y = factor)) +
+  geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+  geom_linerange(aes(xmin = conf.low, xmax = conf.high), linewidth = 0.8, colour = COL_CREST_RED) +
+  geom_point(size = 2.5, colour = COL_CREST_RED) +
+  geom_text(aes(x = 30, label = label), hjust = 0, size = 3.3) +
+  annotate("text", x = 30, y = 5.6, label = "OR (95% CI)", hjust = 0, size = 3.3, fontface = "bold") +
+  scale_x_log10(breaks = c(0.01, 0.1, 0.5, 1, 2, 5), labels = c("0.01", "0.1", "0.5", "1", "2", "5")) +
+  coord_cartesian(xlim = c(0.008, 200), clip = "off") +
+  labs(x = "Odds ratio (log scale)", y = NULL) +
+  theme_hds()
+```
+
+## Sensitivity analyses
+
+- **S1: 12-month cut-off** (`r model_summary$patients[2]` patients, `r model_summary$resistant[2]` resistant). Both residual disease and age kept their direction with smaller odds ratios, at `r or_text(model_s1, "residual_group1-10 mm")` for 1 to 10 mm and `r or_text(model_s1, "age_10")` per 10 years.
+- **Without the redacted patients.** Leaving out the `r sum(ard$flag_cdr_redacted & ard$in_model)` redacted patients made little difference: `r or_text(model_no_redacted, "residual_group1-10 mm")` for 1 to 10 mm and `r or_text(model_no_redacted, "age_10")` for age.
+- **S2: patients left out (Table 2).** The `r in_vs_out$patients[!in_vs_out$in_model]` first-line patients left out of the model were similar in age, stage and race but were diagnosed on average about `r round(in_vs_out$mean_diagnosis_year[!in_vs_out$in_model] - in_vs_out$mean_diagnosis_year[in_vs_out$in_model])` years later.
+
+```{r table-in-vs-out}
+in_row  <- in_vs_out[in_vs_out$in_model, ]
+out_row <- in_vs_out[!in_vs_out$in_model, ]
+
+in_vs_out_table <- data.frame(
+  characteristic = c("Patients", "Mean age (years)", "Stage IV (%)",
+                     "No residual disease (%)", "White, of those with race recorded (%)",
+                     "Died (%)", "Median overall survival (days)", "Mean year of diagnosis"),
+  in_model = as.character(round(unlist(in_row[, -1]), 1)),
+  left_out = as.character(round(unlist(out_row[, -1]), 1)))
+
+kable(in_vs_out_table, col.names = c("", "In the model", "Left out"),
+      row.names = FALSE, align = "lrr",
+      caption = "Table 2. Patients on first-line platinum in the model and left out (S2)")
+```
+
+# Conclusion
+
+## Fitness for the method
+
+This dataset has been made fit for a logistic regression of platinum resistance, albeit with caveats. When checked, the platinum rule reproduced the cBioPortal label with a kappa of `r validation_platinum$kappa`. This confirms that the method works, but not necessarily that the data are correct, because both use the same TCGA records and a shared error would not be caught. The patients have flags and are not removed, so `in_model` defines the cohort. The flags allow further exclusions, including the `r sum(ard$flag_cdr_redacted)` the CDR marks as redacted.
+
+## Uncertainty in the outcome
+
+The platinum-free interval is best used as a continuous measure [@bookman2017], thus six months is more of a convention than a real cut-off point. At the 12-month point, both residual disease and age kept their directions, but stage IV did not. A death with tumour but no recorded new tumour event does not count as platinum resistance. But a late end-date leads to a shorter interval and pushes the patient towards platinum resistance.
+
+## Selection and representativeness
+
+The main source of bias is the selection process. Firstly, over a quarter of first-line patients (`r in_vs_out$patients[!in_vs_out$in_model]` of `r cohort_flow$patients[2]`) did not qualify because of missing end-dates, short follow-up and/or missing covariates. They were also diagnosed in later calendar years, which led to their shorter observed survival. As a result, the model cohort leaned more towards those who were diagnosed earlier and followed for longer. Race records were missing for `r sum(is.na(ard$race))` patients, and out of the `r sum(!is.na(ard$race))` with their race recorded, `r sum(ard$race %in% "WHITE")` (`r round(100 * mean(ard$race[!is.na(ard$race)] == "WHITE"), 1)`%) were white, a heavier skew than the 77% reported across 5,729 samples from ten TCGA tumour types by Spratt et al. [@spratt2016]. Finally, the patient cohort was diagnosed between the years of 1992 and 2013. That means that the treatment is representative of that period, and the findings may not apply to other groups or to current care.
+
+## Governance and FAIR
+
+This dataset carries little to no risk. Under the Five Safes [@desai2016], the key risk is in outputs. This is where small cells such as the single resistant patient at stage I to II are reported, though these values are already public.
+
+In regard to the FAIR principles (findable, accessible, interoperable and reusable), the dataset has a fixed name, a source release (GDC 46.0) and a metadata file, and can be rebuilt by anyone using the open GDC data.
+
+## Implications for care
+
+Defining a patient's platinum status helps clinicians judge which woman is likely to benefit from further platinum-based treatment when her cancer comes back [@markman1991]. Nonetheless, the cohort is historical and predominantly white, and the results show associations rather than predictions, making them currently unfit for clinical use.
+
+## Future work
+
+Future work could include:
+
+- modelling the platinum-free interval as a continuous measure, as Bookman et al. recommend [@bookman2017], or even as a time-to-event outcome;
+- potentially imputing residual disease for the `r sum(ard$platinum_status %in% c("resistant", "sensitive") & is.na(ard$residual_group))` classified patients who were missing it;
+- adding other factors such as BRCA mutation status [@wilson2017] or homologous recombination status.
+
+# References {-}
+
+<details class="refs-box">
+<summary><span class="when-closed">Show reference list</span><span class="when-open">Hide reference list</span></summary>
+
+::: {#refs}
+:::
+
+</details>
+
+
+# Appendix: computing environment {-}
+
+<details class="refs-box">
+<summary><span class="when-closed">Show computing environment</span><span class="when-open">Hide computing environment</span></summary>
+
+```{r session-info}
+sessionInfo()
+```
+
+</details>
+
+```{r documents, results = "asis"}
+# Supplementary documents and the training certificate. Not part of the
+# report body: the documents are listed under "Supplementary documents" in
+# the sidebar, the certificate has its own entry in the contents, and each
+# opens in a panel. Each
+# file is converted to HTML here, so the knitted report carries it, and it
+# sits after the References, so it is outside the word count.
+md_to_html <- function(file, prefix, title) {
+  out <- tempfile(fileext = ".html")
+  rmarkdown::pandoc_convert(file, to = "html5", from = "markdown+gfm_auto_identifiers", output = out,
+                            options = c("--id-prefix", prefix))
+  html <- paste(readLines(out, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  if (!grepl("<h1", html)) html <- paste0("<h1>", title, "</h1>\n", html)
+  html
+}
+csv_to_html <- function(file, title) {
+  table <- read.csv(file, check.names = FALSE)
+  paste0("<h1>", title, "</h1>\n",
+         paste(knitr::kable(table, format = "html", escape = TRUE), collapse = "\n"))
+}
+pdf_to_html <- function(file, title, note, image) {
+  # Shows a picture of the PDF, which displays everywhere (including the
+  # RStudio Viewer), and offers the PDF itself as the download
+  paste0("<h1>", title, "</h1>\n<p>", note, "</p>\n",
+         "<div class=\"doc-image\"><img src=\"", knitr::image_uri(image), "\" alt=\"", title, "\"></div>\n",
+         "<div class=\"pdf-embed\" data-name=\"", basename(file), "\" data-pdf=\"",
+         xfun::base64_uri(file), "\"></div>")
+}
+# group "appendix" is opened from its own entry in the contents; group "folder"
+# is listed under Supplementary documents
+documents <- list(
+  list(key = "mrc_certificate",  group = "appendix", title = "MRC Certificate",       file = "docs/mrc_certificate_sergios_vasileiou.pdf",
+       note = "Medical Research Council, Confidentiality and Data Protection in Health Research, passed on 24 October 2026."),
+  list(key = "dataset_metadata", group = "folder", title = "Dataset metadata",         file = "docs/dataset_metadata.md"),
+  list(key = "data_sources",     group = "folder", title = "Data sources",             file = "docs/data_sources.md"),
+  list(key = "data_dictionary",  group = "folder", title = "Data dictionary",          file = "docs/data_dictionary.csv"),
+  list(key = "phenotypes",       group = "folder", title = "Phenotype specifications", file = "docs/phenotypes.md"),
+  list(key = "validation_plan",  group = "folder", title = "Validation plan",          file = "docs/validation_plan.md"),
+  list(key = "traceability",     group = "folder", title = "Traceability",             file = "docs/traceability.csv"),
+  list(key = "abbreviations",    group = "folder", title = "Abbreviations",            file = "docs/abbreviations.md")
+)
+cat('```{=html}\n<div id="doc-store">\n')
+for (d in documents) {
+  path <- here(d$file)
+  body <- switch(tools::file_ext(path),
+                 md  = md_to_html(path, paste0(d$key, "-"), d$title),
+                 csv = csv_to_html(path, d$title),
+                 pdf = pdf_to_html(path, d$title, d$note,
+                                   here("reports", "images", sub("\\.pdf$", ".png", basename(path)))))
+  cat(sprintf('<section class="doc" data-key="%s" data-group="%s" data-title="%s" data-file="../%s">\n%s\n</section>\n',
+              d$key, d$group, d$title, d$file, body))
+}
+cat("</div>\n```\n")
+```
+
+<!-- Logo. Moved under the author and date in the sidebar when the page loads
+     (stays here if scripts are off). The file lives in reports/images/ and is
+     referenced with a relative path, so the report builds on any machine. -->
+<div class="report-footer">
+<img src="images/pace_logo.png" alt="University of Cambridge, Professional and Continuing Education">
+</div>
+
+```{=html}
+<!-- Reader features, all added when the page loads:
+     email next to the name in the sidebar footer; reading progress; a
+     contents list that follows the reader, with a marker that slides to the
+     current section; a back to top button; citations that highlight their
+     reference; the Supplementary documents list, the certificate entry and
+     the document panel; and
+     hover tips for abbreviations, built from the abbreviations document. -->
+<div id="read-progress"></div>
+<button id="back-to-top" type="button" aria-label="Back to top" title="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+       stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"></polyline></svg>
+</button>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var EMAIL = "sv562@cam.ac.uk";
+  var toc = document.getElementById("toc");
+  var store = document.getElementById("doc-store");
+
+  // ---- Email in brackets after the name, bottom left only -----------------
+  var author = document.querySelector("#postamble .author");
+  if (author) author.insertAdjacentHTML("beforeend",
+    ' <span class="report-email">(<a href="mailto:' + EMAIL + '">' + EMAIL + "</a>)</span>");
+
+  // ---- Reading progress ----------------------------------------------------
+  var meter = document.createElement("div");
+  meter.className = "toc-progress";
+  meter.innerHTML = '<span class="toc-progress-text">0% read</span><div class="bar"><div class="fill"></div></div>';
+  if (toc) toc.parentNode.insertBefore(meter, toc);
+  var bar = document.getElementById("read-progress");
+  var topButton = document.getElementById("back-to-top");
+
+  // ---- Contents: marker slides to the current section, list follows -------
+  var marker = document.createElement("div");
+  marker.className = "toc-marker";
+  if (toc) toc.appendChild(marker);
+  var sections = [];
+  if (toc) toc.querySelectorAll(":scope > ul > li").forEach(function (li) {
+    var link = li.querySelector(":scope > a");
+    var target = link && document.getElementById(link.getAttribute("href").slice(1));
+    if (target) sections.push({ li: li, target: target });
+  });
+  var current = null;
+  function currentLink() {
+    return toc && (toc.querySelector("li.active li.active > a") || toc.querySelector("li.active > a"));
+  }
+  function placeMarker() {
+    var link = currentLink();
+    if (!link) { marker.style.opacity = 0; return; }
+    var t = toc.getBoundingClientRect(), l = link.getBoundingClientRect();
+    marker.style.opacity = 1;
+    marker.style.transform = "translateY(" + (l.top - t.top + toc.scrollTop) + "px)";
+    marker.style.height = l.height + "px";
+  }
+  function follow(link) {
+    var t = toc.getBoundingClientRect(), l = link.getBoundingClientRect();
+    var goal = toc.scrollTop + (l.top - t.top) - toc.clientHeight / 2 + l.height / 2;
+    toc.scrollTo({ top: Math.max(0, goal), behavior: "smooth" });
+  }
+  function trackMarker(ms) {           // keep the marker in place while lists open and close
+    var end = performance.now() + ms;
+    (function step() { placeMarker(); if (performance.now() < end) requestAnimationFrame(step); })();
+  }
+
+  var ticking = false;
+  function update() {
+    ticking = false;
+    var doc = document.documentElement;
+    var scrolled = window.scrollY || doc.scrollTop;
+    var height = doc.scrollHeight - window.innerHeight;
+    var pct = height > 0 ? Math.min(100, Math.round(100 * scrolled / height)) : 100;
+    if (bar) bar.style.width = pct + "%";
+    meter.querySelector(".fill").style.width = pct + "%";
+    meter.querySelector(".toc-progress-text").textContent = pct + "% read";
+    if (topButton) topButton.classList.toggle("show", scrolled > 600);
+    sections.forEach(function (s) {
+      s.li.classList.toggle("toc-done", s.target.getBoundingClientRect().bottom < 120);
+    });
+    var link = currentLink();
+    if (link !== current) {
+      current = link;
+      trackMarker(600);
+      if (link) setTimeout(function () { follow(link); }, 120);
+    } else {
+      placeMarker();
+    }
+  }
+  window.addEventListener("scroll", function () {
+    if (!ticking) { ticking = true; requestAnimationFrame(update); }
+  }, { passive: true });
+  window.addEventListener("resize", function () { placeMarker(); });
+  if (toc) toc.addEventListener("scroll", placeMarker, { passive: true });
+  update();
+  setTimeout(update, 400);
+
+  if (topButton) topButton.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  // ---- Links to a collapsed section open it --------------------------------
+  document.addEventListener("click", function (event) {
+    var link = event.target.closest('a[href^="#"]');
+    if (!link || /^#ref-/.test(link.getAttribute("href"))) return;
+    var target = document.getElementById(link.getAttribute("href").slice(1));
+    var box = target && target.querySelector("details");
+    if (box) box.open = true;
+  });
+
+  // ---- Citations: open the list, centre the reference and highlight it ----
+  document.addEventListener("click", function (event) {
+    var link = event.target.closest('a[href^="#ref-"]');
+    if (!link) return;
+    var entry = document.getElementById(link.getAttribute("href").slice(1));
+    if (!entry) return;
+    event.preventDefault();
+    var box = entry.closest("details");
+    if (box) box.open = true;
+    document.querySelectorAll(".csl-entry.ref-current").forEach(function (e) {
+      e.classList.remove("ref-current", "ref-flash");
+    });
+    entry.classList.add("ref-current");
+    void entry.offsetWidth;            // restart the flash
+    entry.classList.add("ref-flash");
+    entry.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  // ---- Supplementary documents: a list that opens over the contents -------
+  if (store && toc) {
+    var docs = Array.prototype.slice.call(store.querySelectorAll("section.doc"));
+    var item = function (doc) {
+      return '<li><a href="#" data-doc="' + doc.dataset.key + '">' + doc.dataset.title + "</a></li>";
+    };
+    var folder = docs.filter(function (d) { return d.dataset.group === "folder"; });
+    var appendix = docs.filter(function (d) { return d.dataset.group === "appendix"; });
+
+    // The certificate: an entry at the end of the contents, opened in the panel
+    appendix.forEach(function (doc) {
+      var li = document.createElement("li");
+      li.className = "toc-doc";            // set apart from the report sections
+      li.innerHTML = '<a href="#doc-' + doc.dataset.key + '" data-doc="' + doc.dataset.key + '">' + doc.dataset.title + "</a>";
+      toc.querySelector(":scope > ul").appendChild(li);
+    });
+
+    var menu = document.createElement("div");
+    menu.className = "doc-menu";
+    menu.innerHTML =
+      '<button class="doc-menu-tab" type="button" aria-expanded="false">' +
+        '<span>Supplementary documents</span><span class="doc-menu-count">' + folder.length + '</span>' +
+        '<span class="chevron"></span></button>' +
+      '<div class="doc-menu-panel">' +
+        '<p class="doc-menu-title">Supplementary documents</p>' +
+        '<ul class="doc-list">' + folder.map(item).join("") + "</ul>" +
+      "</div>";
+    toc.insertAdjacentElement("afterend", menu);
+    var tab = menu.querySelector(".doc-menu-tab");
+    var panel = menu.querySelector(".doc-menu-panel");
+    var setMenu = function (open) {
+      if (open) panel.style.height = (toc.offsetHeight + meter.offsetHeight) + "px";   // covers the contents
+      menu.classList.toggle("open", open);
+      tab.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+    tab.addEventListener("click", function () { setMenu(!menu.classList.contains("open")); });
+
+    // The panel that shows a document over the report
+    var viewer = document.createElement("div");
+    viewer.id = "doc-viewer";
+    viewer.setAttribute("role", "dialog");
+    viewer.setAttribute("aria-hidden", "true");
+    viewer.innerHTML =
+      '<div class="doc-viewer-head"><span class="doc-viewer-title"></span>' +
+      '<a class="doc-viewer-file" href="#" target="_blank" rel="noopener"></a>' +
+      '<button class="doc-viewer-close" type="button" aria-label="Close document" title="Close (Esc)">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">' +
+      '<line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button></div>' +
+      '<div class="doc-viewer-body"></div>';
+    document.body.appendChild(viewer);
+    var viewerBody = viewer.querySelector(".doc-viewer-body");
+
+    var openDoc = function (key) {
+      var doc = document.querySelector('section.doc[data-key="' + key + '"]');
+      if (!doc) return;
+      viewer.querySelector(".doc-viewer-title").textContent = doc.dataset.title;
+      var file = viewer.querySelector(".doc-viewer-file");
+      file.href = doc.dataset.file;
+      file.textContent = doc.dataset.file.replace("../", "");
+      // Move the document into the panel (and any previous one back), so no
+      // id appears twice on the page
+      Array.prototype.slice.call(viewerBody.children).forEach(function (old) { store.appendChild(old); });
+      viewerBody.appendChild(doc);
+      viewerBody.scrollTop = 0;
+      var pdf = doc.querySelector(".pdf-embed");
+      if (pdf && !pdf.dataset.url) {   // turn the PDF into a file the reader can download
+        var parts = pdf.dataset.pdf.split(",");
+        var bytes = atob(parts[1]), array = new Uint8Array(bytes.length);
+        for (var i = 0; i < bytes.length; i++) array[i] = bytes.charCodeAt(i);
+        pdf.dataset.url = URL.createObjectURL(new Blob([array], { type: "application/pdf" }));
+        pdf.innerHTML = '<p><a class="pdf-download" href="' + pdf.dataset.url + '" download="' + pdf.dataset.name + '">Download the PDF</a></p>';
+      }
+      viewer.classList.add("open");
+      viewer.setAttribute("aria-hidden", "false");
+      document.body.classList.add("doc-open");
+      document.querySelectorAll("#sidebar a[data-doc]").forEach(function (a) { a.classList.toggle("active", a.dataset.doc === key); });
+    };
+    var closeDoc = function () {
+      viewer.classList.remove("open");
+      viewer.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("doc-open");
+      document.querySelectorAll("#sidebar a[data-doc].active").forEach(function (a) { a.classList.remove("active"); });
+    };
+
+    document.getElementById("sidebar").addEventListener("click", function (event) {
+      var link = event.target.closest("a[data-doc]");
+      if (!link) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (link.classList.contains("active")) closeDoc(); else openDoc(link.dataset.doc);
+    }, true);
+    viewer.querySelector(".doc-viewer-close").addEventListener("click", closeDoc);
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") { closeDoc(); setMenu(false); }
+    });
+    toc.addEventListener("click", function () { closeDoc(); setMenu(false); });
+
+    // Links to these files, in the report or inside a document, open in the panel
+    document.addEventListener("click", function (event) {
+      var link = event.target.closest("a[href]");
+      if (!link || link.closest(".doc-menu") || link.classList.contains("doc-viewer-file")) return;
+      var href = link.getAttribute("href");
+      if (/^(https?:|mailto:|#|blob:|data:)/.test(href)) return;
+      var name = href.split("/").pop();
+      var doc = docs.filter(function (d) { return d.dataset.file.split("/").pop() === name; })[0];
+      if (doc) {
+        event.preventDefault();
+        openDoc(doc.dataset.key);
+      }
+    }, true);
+  }
+
+  // ---- Abbreviation tips: first use in each section, from the abbreviations document
+  var table = store && store.querySelector('section.doc[data-key="abbreviations"] table');
+  if (!table) return;
+  var meaning = {};
+  table.querySelectorAll("tbody tr").forEach(function (tr) {
+    var cells = tr.querySelectorAll("td");
+    if (cells.length < 2) return;
+    var text = cells[1].textContent.replace(/\s+/g, " ").trim();
+    cells[0].textContent.split(",").forEach(function (term) {
+      term = term.trim();
+      if (term && term !== "NA") meaning[term] = text;
+    });
+  });
+  var terms = Object.keys(meaning).sort(function (a, b) { return b.length - a.length; });
+  if (!terms.length) return;
+  var escaped = terms.map(function (t) { return t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); });
+  var pattern = new RegExp("(^|[^A-Za-z0-9-])(" + escaped.join("|") + ")(?![A-Za-z0-9-])", "g");
+
+  var skip = "#references, #refs, #doc-store, a, abbr, code, pre, script, style, summary, h1, h2, h3, h4, .caption";
+  var root = document.getElementById("content") || document.body;
+  var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  var nodes = [];
+  while (walker.nextNode()) {
+    var parent = walker.currentNode.parentElement;
+    if (parent && !parent.closest(skip)) nodes.push(walker.currentNode);
+  }
+  var seen = new Map();
+  nodes.forEach(function (node) {
+    var section = node.parentElement.closest(".section.level2") ||
+                  node.parentElement.closest(".section.level1") || root;
+    if (!seen.has(section)) seen.set(section, new Set());
+    var used = seen.get(section);
+    var text = node.nodeValue, last = 0, out = null, m;
+    pattern.lastIndex = 0;
+    while ((m = pattern.exec(text))) {
+      var term = m[2], start = m.index + m[1].length;
+      if (used.has(term)) continue;
+      used.add(term);
+      out = out || document.createDocumentFragment();
+      out.appendChild(document.createTextNode(text.slice(last, start)));
+      var tip = document.createElement("abbr");
+      tip.className = "abbr-tip";
+      tip.tabIndex = 0;
+      tip.setAttribute("data-tip", meaning[term]);
+      tip.setAttribute("aria-label", term + ": " + meaning[term]);
+      tip.textContent = term;
+      out.appendChild(tip);
+      last = start + term.length;
+    }
+    if (out) {
+      out.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(out, node);
+    }
+  });
+});
+</script>
+```
